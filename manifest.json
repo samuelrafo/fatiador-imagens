@@ -1,0 +1,25 @@
+{
+  "name": "Fatiador de Imagens",
+  "short_name": "Fatiador",
+  "description": "Corte imagens em fatias verticais e baixe em arquivo compactado ou em imagens separadas. Funciona offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f6",
+  "theme_color": "#0a84ff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

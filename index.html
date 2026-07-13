@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fatiador de imagens</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a84ff">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/vendor/jszip.min.js"></script>
+</head>
+
+<body>
+
+
+
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Ferramenta de corte</div>
+      <h1>Fatiador de imagens</h1>
+      <p class="sub">Carregue uma imagem, escolha em quantas fatias verticais ela deve ser cortada, e baixe tudo pronto
+        em um único arquivo compactado ou em imagens separadas. Funciona offline.</p>
+    </header>
+
+    <main>
+      <!-- LEFT: cutting board -->
+      <section class="panel board">
+        <div class="board-head">
+          <span class="tag">Mesa de corte</span>
+          <span class="count" id="dimTag">—</span>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <div class="dz-inner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+              <path d="M7 9l5-5 5 5" />
+              <path d="M12 4v12" />
+            </svg>
+            <div class="dz-title">Arraste uma imagem aqui</div>
+            <div class="dz-hint">ou clique para escolher · Aceita PNG e JPG</div>
+          </div>
+          <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="stage" id="stage">
+          <div class="ruler" id="ruler"></div>
+          <div class="canvas-holder">
+            <canvas id="previewCanvas"></canvas>
+            <div class="cut-overlay" id="cutOverlay"></div>
+          </div>
+        </div>
+
+        <div class="file-meta" id="fileMeta" style="display:none;">
+          <span>arquivo: <b id="metaName">—</b></span>
+          <span>dimensões: <b id="metaDim">—</b></span>
+          <span>tamanho: <b id="metaSize">—</b></span>
+        </div>
+      </section>
+
+      <!-- RIGHT: controls -->
+      <section class="panel controls">
+        <div class="ctrl-block">
+          <label>Quantidade de fatias</label>
+          <div class="slice-input">
+            <div class="stepper">
+              <button type="button" id="decBtn">–</button>
+              <input type="number" id="sliceCount" value="2" min="2" max="20">
+              <button type="button" id="incBtn">+</button>
+            </div>
+            <input type="range" id="sliceRange" min="2" max="20" value="2">
+          </div>
+        </div>
+
+        <div class="ctrl-block">
+          <label>Formato de saída</label>
+          <div class="format-row">
+            <button type="button" class="fmt active" data-fmt="png">PNG</button>
+            <button type="button" class="fmt" data-fmt="jpeg">JPG</button>
+          </div>
+        </div>
+
+        <div class="ctrl-block">
+          <label>Modo de download</label>
+          <div class="format-row">
+            <button type="button" class="mode active" data-mode="zip">Arquivo .zip</button>
+            <button type="button" class="mode" data-mode="individual">Fatias individuais</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="summary">
+          <div>tiras a gerar: <span id="sumCount">2</span></div>
+          <div>largura por tira: <span id="sumWidth">—</span> px</div>
+          <div>arquivo final: <span id="sumZipName">fatias.zip</span></div>
+        </div>
+
+        <div class="progress-track" id="progressTrack">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <button class="btn-primary" id="cutBtn" disabled>
+          <span id="cutBtnLabel">Cortar e baixar .zip</span>
+        </button>
+
+        <a class="reset-link" id="resetLink" style="display:none;">Começar de novo com outra imagem</a>
+      </section>
+    </main>
+
+    <footer>
+      <span>Feito por Samuel Rafo // Para uso interno // Ana Cris Marketing</span>
+    </footer>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+          console.warn('Service Worker não pôde ser registrado:', err);
+        });
+      });
+    }
+  </script>
+</body>
+
+</html>
