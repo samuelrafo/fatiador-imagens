@@ -19,7 +19,7 @@
 
   <div class="wrap">
     <header class="hero">
-      <div class="eyebrow">Ferramenta de corte</div>
+      <div class="eyebrow">Ferramenta de corte V2</div>
       <h1>Fatiador de imagens</h1>
       <p class="sub">Carregue uma imagem, escolha em quantas fatias verticais ela deve ser cortada, e baixe tudo pronto
         em um único arquivo compactado ou em imagens separadas. Funciona offline.</p>
@@ -62,17 +62,21 @@
       </section>
 
       <!-- RIGHT: controls -->
-      <section class="panel controls">
+      <section class="panel controls" id="controlsPanel">
         <div class="ctrl-block">
-          <label>Quantidade de fatias</label>
+          <div class="ctrl-head">
+            <label for="sliceCount">Quantidade de fatias</label>
+            <span class="ideal-badge" id="idealBadge" style="display:none;"></span>
+          </div>
           <div class="slice-input">
             <div class="stepper">
-              <button type="button" id="decBtn">–</button>
+              <button type="button" id="decBtn" aria-label="Diminuir fatias">–</button>
               <input type="number" id="sliceCount" value="2" min="2" max="20">
-              <button type="button" id="incBtn">+</button>
+              <button type="button" id="incBtn" aria-label="Aumentar fatias">+</button>
             </div>
             <input type="range" id="sliceRange" min="2" max="20" value="2">
           </div>
+          <div class="ideal-hint" id="idealHint" style="display:none;"></div>
         </div>
 
         <div class="ctrl-block">
@@ -86,17 +90,18 @@
         <div class="ctrl-block">
           <label>Modo de download</label>
           <div class="format-row">
-            <button type="button" class="mode active" data-mode="zip">Arquivo .zip</button>
-            <button type="button" class="mode" data-mode="individual">Fatias individuais</button>
+            <button type="button" class="mode active" data-mode="individual">Fatias individuais</button>
+            <button type="button" class="mode" data-mode="zip">Arquivo .zip</button>
           </div>
         </div>
 
         <div class="divider"></div>
 
         <div class="summary">
-          <div>tiras a gerar: <span id="sumCount">2</span></div>
-          <div>largura por tira: <span id="sumWidth">—</span> px</div>
-          <div>arquivo final: <span id="sumZipName">fatias.zip</span></div>
+          <div>fatias a gerar: <span id="sumCount">2</span></div>
+          <div>largura por fatia: <span id="sumWidth">—</span> px <span class="width-match" id="widthMatch"
+              style="display:none;"></span></div>
+          <div>arquivo final: <span id="sumZipName">2 arquivos separados</span></div>
         </div>
 
         <div class="progress-track" id="progressTrack">
@@ -104,7 +109,7 @@
         </div>
 
         <button class="btn-primary" id="cutBtn" disabled>
-          <span id="cutBtnLabel">Cortar e baixar .zip</span>
+          <span id="cutBtnLabel">Cortar e baixar fatias</span>
         </button>
 
         <a class="reset-link" id="resetLink" style="display:none;">Começar de novo com outra imagem</a>

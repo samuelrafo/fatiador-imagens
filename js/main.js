@@ -1,7 +1,8 @@
-(function(){
+(function () {
   const dropzone = document.getElementById('dropzone');
   const fileInput = document.getElementById('fileInput');
   const stage = document.getElementById('stage');
+  const controlsPanel = document.getElementById('controlsPanel');
   const canvas = document.getElementById('previewCanvas');
   const ctx = canvas.getContext('2d');
   const cutOverlay = document.getElementById('cutOverlay');
@@ -13,6 +14,10 @@
   const metaDim = document.getElementById('metaDim');
   const metaSize = document.getElementById('metaSize');
 
+  const idealBadge = document.getElementById('idealBadge');
+  const idealHint = document.getElementById('idealHint');
+  const widthMatch = document.getElementById('widthMatch');
+
   const sliceCountInput = document.getElementById('sliceCount');
   const sliceRange = document.getElementById('sliceRange');
   const decBtn = document.getElementById('decBtn');
@@ -22,7 +27,7 @@
   let currentFormat = 'png';
 
   const modeButtons = document.querySelectorAll('.mode');
-  let currentMode = 'zip';
+  let currentMode = 'individual';
 
   const sumCount = document.getElementById('sumCount');
   const sumWidth = document.getElementById('sumWidth');
@@ -37,6 +42,7 @@
   let img = null;
   let originalFile = null;
   let naturalW = 0, naturalH = 0;
+  let detectedIdealSlices = null;
 
   // ---------- upload handling ----------
   dropzone.addEventListener('click', () => fileInput.click());
@@ -53,16 +59,30 @@
 
   resetLink.addEventListener('click', () => {
     img = null; originalFile = null;
+    naturalW = 0; naturalH = 0;
+    detectedIdealSlices = null;
     stage.classList.remove('active');
+    if (controlsPanel) controlsPanel.classList.remove('active');
     dropzone.style.display = 'flex';
     fileMeta.style.display = 'none';
     resetLink.style.display = 'none';
     cutBtn.disabled = true;
     dimTag.textContent = '—';
     fileInput.value = '';
+    sliceCountInput.max = 20;
+    sliceRange.max = 20;
+    updateIdealUI(2);
+    syncSliceUI(2);
   });
 
-  function handleFile(file){
+  function calculateIdealSlices(w) {
+    if (!w || w <= 0) return 2;
+    const BASE_WIDTH = 1080;
+    const slices = Math.round(w / BASE_WIDTH);
+    return Math.max(2, slices);
+  }
+
+  function handleFile(file) {
     if (!file.type.startsWith('image/')) return;
     originalFile = file;
     const reader = new FileReader();
@@ -79,27 +99,29 @@
     reader.readAsDataURL(file);
   }
 
-  function onImageReady(file){
+  function onImageReady(file) {
     dropzone.style.display = 'none';
     stage.classList.add('active');
+    if (controlsPanel) controlsPanel.classList.add('active');
     fileMeta.style.display = 'flex';
     resetLink.style.display = 'inline-block';
     cutBtn.disabled = false;
 
     metaName.textContent = file.name;
     metaDim.textContent = naturalW + ' × ' + naturalH + ' px';
-    metaSize.textContent = (file.size/1024).toFixed(0) + ' KB';
+    metaSize.textContent = (file.size / 1024).toFixed(0) + ' KB';
     dimTag.textContent = naturalW + '×' + naturalH;
 
-    // clamp max slices sensibly to image width
-    const maxSlices = Math.max(2, Math.min(20, naturalW));
+    detectedIdealSlices = calculateIdealSlices(naturalW);
+
+    const maxSlices = Math.max(20, Math.min(50, Math.max(detectedIdealSlices + 4, Math.floor(naturalW / 50))));
     sliceCountInput.max = maxSlices;
     sliceRange.max = maxSlices;
 
-    drawPreview();
+    syncSliceUI(detectedIdealSlices);
   }
 
-  function drawPreview(){
+  function drawPreview() {
     if (!img) return;
     const holderW = canvas.parentElement.clientWidth - 20;
     const holderH = 460;
@@ -110,14 +132,14 @@
     canvas.height = naturalH;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    ctx.clearRect(0,0,canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0);
 
     drawCutLines(w, h);
     drawRuler(w);
   }
 
-  function drawCutLines(displayW, displayH){
+  function drawCutLines(displayW, displayH) {
     cutOverlay.innerHTML = '';
     cutOverlay.style.width = displayW + 'px';
     cutOverlay.style.height = displayH + 'px';
@@ -129,31 +151,31 @@
     const n = getSliceCount();
     const stepW = displayW / n;
 
-    for(let i=1;i<n;i++){
+    for (let i = 1; i < n; i++) {
       const line = document.createElement('div');
       line.className = 'cut-line';
-      line.style.left = (stepW*i) + 'px';
+      line.style.left = (stepW * i) + 'px';
       cutOverlay.appendChild(line);
     }
-    for(let i=0;i<n;i++){
+    for (let i = 0; i < n; i++) {
       const label = document.createElement('div');
       label.className = 'strip-label';
-      label.style.left = (stepW*i + 4) + 'px';
-      label.textContent = String(i+1).padStart(2,'0');
+      label.style.left = (stepW * i + 4) + 'px';
+      label.textContent = String(i + 1).padStart(2, '0');
       cutOverlay.appendChild(label);
     }
   }
 
-  function drawRuler(displayW){
+  function drawRuler(displayW) {
     ruler.innerHTML = '';
     const n = getSliceCount();
     const stepW = displayW / n;
     ruler.style.width = displayW + 'px';
     ruler.style.margin = '0 auto';
-    for(let i=0;i<=n;i++){
+    for (let i = 0; i <= n; i++) {
       const tick = document.createElement('div');
       tick.style.position = 'absolute';
-      tick.style.left = (stepW*i) + 'px';
+      tick.style.left = (stepW * i) + 'px';
       tick.style.bottom = '0';
       tick.style.height = (i % n === 0 ? '16px' : '10px');
       tick.style.borderLeft = '1px solid var(--steel-dim)';
@@ -161,24 +183,78 @@
     }
   }
 
-  function getSliceCount(){
+  function getSliceCount() {
     let n = parseInt(sliceCountInput.value, 10);
     if (isNaN(n) || n < 2) n = 2;
     return n;
   }
 
-  function syncSliceUI(n){
+  function updateIdealUI(n) {
+    if (!naturalW || !detectedIdealSlices) {
+      if (idealBadge) idealBadge.style.display = 'none';
+      if (idealHint) idealHint.style.display = 'none';
+      if (widthMatch) widthMatch.style.display = 'none';
+      return;
+    }
+
+    const currentSliceW = Math.round(naturalW / n);
+    const isExact1080 = (naturalW % n === 0) && (naturalW / n === 1080);
+    const isCloseTo1080 = currentSliceW === 1080;
+    const isIdealCount = (n === detectedIdealSlices);
+
+    if (idealBadge) {
+      idealBadge.style.display = 'inline-flex';
+      if (isExact1080) {
+        idealBadge.textContent = '✨ 1080px exato';
+        idealBadge.classList.add('active-ideal');
+      } else if (isIdealCount) {
+        idealBadge.textContent = '✨ Ideal: ' + detectedIdealSlices + ' fatias';
+        idealBadge.classList.add('active-ideal');
+      } else {
+        idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias';
+        idealBadge.classList.remove('active-ideal');
+      }
+    }
+
+    if (idealHint) {
+      if (!isIdealCount) {
+        idealHint.style.display = 'flex';
+        const idealW = Math.round(naturalW / detectedIdealSlices);
+        idealHint.innerHTML = `<span>Sugestão: <b>${detectedIdealSlices} fatias</b> (${idealW}px cada)</span><button type="button" class="btn-apply-ideal" id="applyIdealBtn">Aplicar ${detectedIdealSlices} fatias</button>`;
+        const applyBtn = document.getElementById('applyIdealBtn');
+        if (applyBtn) {
+          applyBtn.addEventListener('click', () => syncSliceUI(detectedIdealSlices));
+        }
+      } else {
+        idealHint.style.display = 'none';
+      }
+    }
+
+    if (widthMatch) {
+      if (isExact1080 || isCloseTo1080) {
+        widthMatch.style.display = 'inline-block';
+        widthMatch.textContent = isExact1080 ? 'Padrão 1080px ✓' : '~1080px';
+      } else {
+        widthMatch.style.display = 'none';
+      }
+    }
+  }
+
+  function syncSliceUI(n) {
     sliceCountInput.value = n;
     sliceRange.value = n;
     sumCount.textContent = n;
     if (naturalW) {
       sumWidth.textContent = Math.ceil(naturalW / n);
+    } else {
+      sumWidth.textContent = '—';
     }
+    updateIdealUI(n);
     updateModeSummary();
     if (stage.classList.contains('active')) drawPreview();
   }
 
-  function updateModeSummary(){
+  function updateModeSummary() {
     const n = getSliceCount();
     if (currentMode === 'individual') {
       sumZipName.textContent = n + ' arquivos separados';
@@ -189,10 +265,24 @@
     }
   }
 
-  sliceCountInput.addEventListener('input', () => syncSliceUI(getSliceCount()));
-  sliceRange.addEventListener('input', () => syncSliceUI(parseInt(sliceRange.value,10)));
-  decBtn.addEventListener('click', () => syncSliceUI(Math.max(2, getSliceCount()-1)));
-  incBtn.addEventListener('click', () => syncSliceUI(Math.min(parseInt(sliceCountInput.max||20,10), getSliceCount()+1)));
+  sliceCountInput.addEventListener('input', () => {
+    let val = parseInt(sliceCountInput.value, 10);
+    const min = parseInt(sliceCountInput.min || 2, 10);
+    const max = parseInt(sliceCountInput.max || 20, 10);
+    if (isNaN(val)) return;
+    if (val < min) val = min;
+    if (val > max) val = max;
+    syncSliceUI(val);
+  });
+  sliceRange.addEventListener('input', () => syncSliceUI(parseInt(sliceRange.value, 10)));
+  decBtn.addEventListener('click', () => {
+    const min = parseInt(sliceCountInput.min || 2, 10);
+    syncSliceUI(Math.max(min, getSliceCount() - 1));
+  });
+  incBtn.addEventListener('click', () => {
+    const max = parseInt(sliceCountInput.max || 20, 10);
+    syncSliceUI(Math.min(max, getSliceCount() + 1));
+  });
 
   fmtButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -251,11 +341,11 @@
         sctx.drawImage(img, x, 0, sliceW, naturalH, 0, 0, sliceW, naturalH);
 
         const blob = await new Promise(res => sliceCanvas.toBlob(res, mime, 0.92));
-        const name = baseName + '-fatia-' + String(i+1).padStart(2,'0') + '.' + ext;
+        const name = baseName + '-fatia-' + String(i + 1).padStart(2, '0') + '.' + ext;
         slices.push({ name, blob });
 
         x += sliceW;
-        progressFill.style.width = Math.round(((i+1)/n)*70) + '%';
+        progressFill.style.width = Math.round(((i + 1) / n) * 70) + '%';
       }
 
       if (currentMode === 'individual') {
@@ -269,7 +359,7 @@
           a.click();
           a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 4000);
-          progressFill.style.width = (70 + Math.round(((i+1)/slices.length)*30)) + '%';
+          progressFill.style.width = (70 + Math.round(((i + 1) / slices.length) * 30)) + '%';
           // small delay so the browser doesn't block a burst of downloads
           await new Promise(r => setTimeout(r, 220));
         }
@@ -278,7 +368,7 @@
         const zip = new JSZip();
         slices.forEach(s => zip.file(s.name, s.blob));
         const zipBlob = await zip.generateAsync({ type: 'blob' }, meta => {
-          progressFill.style.width = (70 + Math.round(meta.percent*0.3)) + '%';
+          progressFill.style.width = (70 + Math.round(meta.percent * 0.3)) + '%';
         });
 
         const url = URL.createObjectURL(zipBlob);

@@ -335,10 +335,23 @@ section.panel {
 
 /* ===== controls ===== */
 .controls {
+  display: none;
   padding: 26px;
-  display: flex;
   flex-direction: column;
   gap: 24px;
+  animation: fadeIn 0.25s ease;
+}
+
+.controls.active {
+  display: flex;
+}
+
+.ctrl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .ctrl-block label {
@@ -347,6 +360,90 @@ section.panel {
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 12px;
+}
+
+.ctrl-head label {
+  margin-bottom: 0;
+}
+
+.ideal-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: var(--mono);
+  color: #035e4d;
+  background: rgba(54, 241, 205, 0.22);
+  border: 1px solid rgba(54, 241, 205, 0.55);
+  padding: 3px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: fadeIn .2s ease;
+}
+
+.ideal-badge.active-ideal {
+  background: rgba(54, 241, 205, 0.32);
+  border-color: #18d4ac;
+}
+
+.ideal-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(120, 120, 128, 0.08);
+  border: 1px dashed rgba(120, 120, 128, 0.2);
+  padding: 8px 12px;
+  border-radius: 10px;
+  animation: fadeIn .2s ease;
+}
+
+.ideal-hint b {
+  color: var(--ink);
+}
+
+.ideal-hint button.btn-apply-ideal {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .1s ease, opacity .15s ease;
+}
+
+.ideal-hint button.btn-apply-ideal:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.ideal-hint button.btn-apply-ideal:active {
+  transform: scale(0.96);
+}
+
+.width-match {
+  font-size: 11px;
+  font-weight: 600;
+  color: #035e4d;
+  background: rgba(54, 241, 205, 0.25);
+  border: 1px solid rgba(54, 241, 205, 0.4);
+  padding: 2px 7px;
+  border-radius: 6px;
+  margin-left: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .slice-input {
