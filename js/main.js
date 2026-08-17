@@ -205,10 +205,10 @@
     if (idealBadge) {
       idealBadge.style.display = 'inline-flex';
       if (isExact1080) {
-        idealBadge.textContent = '✨ 1080px exato';
+        idealBadge.textContent = '1080px exato';
         idealBadge.classList.add('active-ideal');
       } else if (isIdealCount) {
-        idealBadge.textContent = '✨ Ideal: ' + detectedIdealSlices + ' fatias';
+        idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias';
         idealBadge.classList.add('active-ideal');
       } else {
         idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias';
