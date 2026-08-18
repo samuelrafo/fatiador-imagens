@@ -286,15 +286,19 @@ section.panel {
 
 .cut-line {
   position: absolute;
+  pointer-events: none;
+  opacity: 1;
+}
+
+.cut-line.vertical {
   top: 0;
   bottom: 0;
   width: 0;
   border-left: 2px dashed var(--blade);
-  opacity: 1;
   transform: translateX(-1px);
 }
 
-.cut-line::before {
+.cut-line.vertical::before {
   content: "";
   position: absolute;
   top: -6px;
@@ -305,17 +309,37 @@ section.panel {
   background: var(--blade);
 }
 
+.cut-line.horizontal {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed var(--blade);
+  transform: translateY(-1px);
+}
+
+.cut-line.horizontal::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blade);
+}
+
 .strip-label {
   position: absolute;
-  top: 8px;
   font-family: var(--mono);
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 600;
   color: #fff;
   background: var(--blade);
   padding: 2px 6px;
   border-radius: 6px;
   letter-spacing: 0.02em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
 }
 
 .file-meta {
@@ -394,6 +418,7 @@ section.panel {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
   background: rgba(120, 120, 128, 0.08);
   border: 1px dashed rgba(120, 120, 128, 0.2);
   padding: 8px 12px;
@@ -403,6 +428,13 @@ section.panel {
 
 .ideal-hint b {
   color: var(--ink);
+}
+
+.ideal-hint-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .ideal-hint button.btn-apply-ideal {
@@ -474,8 +506,15 @@ section.panel {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-2px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .slice-input {
@@ -558,6 +597,18 @@ input[type=range]::-moz-range-thumb {
   border: none;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(20, 20, 30, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .format-row {

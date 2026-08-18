@@ -18,10 +18,21 @@
   const idealHint = document.getElementById('idealHint');
   const widthMatch = document.getElementById('widthMatch');
 
+  const idealBadgeH = document.getElementById('idealBadgeH');
+  const idealHintH = document.getElementById('idealHintH');
+  const heightMatch = document.getElementById('heightMatch');
+
+  // Vertical slices
   const sliceCountInput = document.getElementById('sliceCount');
   const sliceRange = document.getElementById('sliceRange');
   const decBtn = document.getElementById('decBtn');
   const incBtn = document.getElementById('incBtn');
+
+  // Horizontal slices
+  const sliceCountHInput = document.getElementById('sliceCountH');
+  const sliceRangeH = document.getElementById('sliceRangeH');
+  const decBtnH = document.getElementById('decBtnH');
+  const incBtnH = document.getElementById('incBtnH');
 
   const fmtButtons = document.querySelectorAll('.fmt');
   let currentFormat = 'png';
@@ -41,6 +52,7 @@
 
   const sumCount = document.getElementById('sumCount');
   const sumWidth = document.getElementById('sumWidth');
+  const sumHeight = document.getElementById('sumHeight');
   const sumCompress = document.getElementById('sumCompress');
   const sumZipName = document.getElementById('sumZipName');
 
@@ -54,6 +66,7 @@
   let originalFile = null;
   let naturalW = 0, naturalH = 0;
   let detectedIdealSlices = null;
+  let detectedIdealSlicesH = null;
 
   // ---------- upload handling ----------
   dropzone.addEventListener('click', () => fileInput.click());
@@ -72,6 +85,7 @@
     img = null; originalFile = null;
     naturalW = 0; naturalH = 0;
     detectedIdealSlices = null;
+    detectedIdealSlicesH = null;
     stage.classList.remove('active');
     if (controlsPanel) controlsPanel.classList.remove('active');
     dropzone.style.display = 'flex';
@@ -80,8 +94,12 @@
     cutBtn.disabled = true;
     dimTag.textContent = '—';
     fileInput.value = '';
+    sliceCountInput.min = 1;
+    sliceRange.min = 1;
     sliceCountInput.max = 20;
     sliceRange.max = 20;
+    if (sliceCountHInput) sliceCountHInput.value = 1;
+    if (sliceRangeH) sliceRangeH.value = 1;
 
     isCompressed = false;
     qualityPNG = 100;
@@ -95,15 +113,48 @@
     if (qualityBlock) qualityBlock.style.display = 'none';
     updateQualityUI();
 
-    updateIdealUI(2);
-    syncSliceUI(2);
+    updateIdealUI(2, 1);
+    syncSliceUI(2, 1);
   });
 
   function calculateIdealSlices(w) {
     if (!w || w <= 0) return 2;
     const BASE_WIDTH = 1080;
     const slices = Math.round(w / BASE_WIDTH);
-    return Math.max(2, slices);
+    return Math.min(20, Math.max(1, slices));
+  }
+
+  function calculateIdealSlicesH(h) {
+    if (!h || h <= 0) return { slices: 1, target: 1350, s1350: 1, s1920: 1 };
+    const s1350 = Math.min(20, Math.max(1, Math.round(h / 1350)));
+    const s1920 = Math.min(20, Math.max(1, Math.round(h / 1920)));
+    const isExact1350 = (h % 1350 === 0);
+    const isExact1920 = (h % 1920 === 0);
+
+    let bestTarget = 1350;
+    let bestSlices = s1350;
+
+    if (isExact1920 && !isExact1350) {
+      bestTarget = 1920;
+      bestSlices = s1920;
+    } else if (!isExact1350 && !isExact1920) {
+      const err1350 = Math.abs((h / s1350) - 1350);
+      const err1920 = Math.abs((h / s1920) - 1920);
+      if (err1920 < err1350) {
+        bestTarget = 1920;
+        bestSlices = s1920;
+      } else {
+        bestTarget = 1350;
+        bestSlices = s1350;
+      }
+    }
+
+    return {
+      slices: bestSlices,
+      target: bestTarget,
+      s1350: s1350,
+      s1920: s1920
+    };
   }
 
   function handleFile(file) {
@@ -137,12 +188,12 @@
     dimTag.textContent = naturalW + '×' + naturalH;
 
     detectedIdealSlices = calculateIdealSlices(naturalW);
+    detectedIdealSlicesH = calculateIdealSlicesH(naturalH);
 
-    const maxSlices = Math.max(20, Math.min(50, Math.max(detectedIdealSlices + 4, Math.floor(naturalW / 50))));
-    sliceCountInput.max = maxSlices;
-    sliceRange.max = maxSlices;
+    sliceCountInput.max = 20;
+    sliceRange.max = 20;
 
-    syncSliceUI(detectedIdealSlices);
+    syncSliceUI(detectedIdealSlices, detectedIdealSlicesH ? detectedIdealSlicesH.slices : 1);
   }
 
   function drawPreview() {
@@ -172,27 +223,49 @@
     cutOverlay.style.transform = 'translateX(-50%)';
     cutOverlay.style.right = 'auto';
 
-    const n = getSliceCount();
-    const stepW = displayW / n;
+    const nV = getSliceCountV();
+    const nH = getSliceCountH();
+    const rows = nH;
+    const stepW = displayW / nV;
+    const stepH = displayH / rows;
 
-    for (let i = 1; i < n; i++) {
-      const line = document.createElement('div');
-      line.className = 'cut-line';
-      line.style.left = (stepW * i) + 'px';
-      cutOverlay.appendChild(line);
+    // Vertical cut lines
+    if (nV > 1) {
+      for (let i = 1; i < nV; i++) {
+        const line = document.createElement('div');
+        line.className = 'cut-line vertical';
+        line.style.left = (stepW * i) + 'px';
+        cutOverlay.appendChild(line);
+      }
     }
-    for (let i = 0; i < n; i++) {
-      const label = document.createElement('div');
-      label.className = 'strip-label';
-      label.style.left = (stepW * i + 4) + 'px';
-      label.textContent = String(i + 1).padStart(2, '0');
-      cutOverlay.appendChild(label);
+
+    // Horizontal cut lines
+    if (nH > 1) {
+      for (let r = 1; r < nH; r++) {
+        const line = document.createElement('div');
+        line.className = 'cut-line horizontal';
+        line.style.top = (stepH * r) + 'px';
+        cutOverlay.appendChild(line);
+      }
+    }
+
+    // Number badges
+    let idx = 1;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < nV; c++) {
+        const label = document.createElement('div');
+        label.className = 'strip-label';
+        label.style.left = (stepW * c + 6) + 'px';
+        label.style.top = (stepH * r + 6) + 'px';
+        label.textContent = String(idx++).padStart(2, '0');
+        cutOverlay.appendChild(label);
+      }
     }
   }
 
   function drawRuler(displayW) {
     ruler.innerHTML = '';
-    const n = getSliceCount();
+    const n = getSliceCountV();
     const stepW = displayW / n;
     ruler.style.width = displayW + 'px';
     ruler.style.margin = '0 auto';
@@ -207,59 +280,146 @@
     }
   }
 
-  function getSliceCount() {
+  function getSliceCountV() {
     let n = parseInt(sliceCountInput.value, 10);
-    if (isNaN(n) || n < 2) n = 2;
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 20) n = 20;
     return n;
   }
 
-  function updateIdealUI(n) {
+  function getSliceCountH() {
+    if (!sliceCountHInput) return 1;
+    let n = parseInt(sliceCountHInput.value, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    if (n > 20) n = 20;
+    return n;
+  }
+
+  function getTotalSlices() {
+    const v = getSliceCountV();
+    const h = getSliceCountH();
+    return v * h;
+  }
+
+  function updateIdealUI(nV, nH) {
+    // --- VERTICAL (largura padrão 1080px) ---
     if (!naturalW || !detectedIdealSlices) {
       if (idealBadge) idealBadge.style.display = 'none';
       if (idealHint) idealHint.style.display = 'none';
       if (widthMatch) widthMatch.style.display = 'none';
-      return;
-    }
+    } else {
+      const currentSliceW = Math.round(naturalW / nV);
+      const isExact1080 = (naturalW % nV === 0) && (naturalW / nV === 1080);
+      const isCloseTo1080 = currentSliceW === 1080;
+      const isIdealCount = (nV === detectedIdealSlices);
 
-    const currentSliceW = Math.round(naturalW / n);
-    const isExact1080 = (naturalW % n === 0) && (naturalW / n === 1080);
-    const isCloseTo1080 = currentSliceW === 1080;
-    const isIdealCount = (n === detectedIdealSlices);
-
-    if (idealBadge) {
-      idealBadge.style.display = 'inline-flex';
-      if (isExact1080) {
-        idealBadge.textContent = '1080px exato';
-        idealBadge.classList.add('active-ideal');
-      } else if (isIdealCount) {
-        idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias';
-        idealBadge.classList.add('active-ideal');
-      } else {
-        idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias';
-        idealBadge.classList.remove('active-ideal');
-      }
-    }
-
-    if (idealHint) {
-      if (!isIdealCount) {
-        idealHint.style.display = 'flex';
-        const idealW = Math.round(naturalW / detectedIdealSlices);
-        idealHint.innerHTML = `<span>Sugestão: <b>${detectedIdealSlices} fatias</b> (${idealW}px cada)</span><button type="button" class="btn-apply-ideal" id="applyIdealBtn">Aplicar ${detectedIdealSlices} fatias</button>`;
-        const applyBtn = document.getElementById('applyIdealBtn');
-        if (applyBtn) {
-          applyBtn.addEventListener('click', () => syncSliceUI(detectedIdealSlices));
+      if (idealBadge) {
+        idealBadge.style.display = 'inline-flex';
+        if (isExact1080) {
+          idealBadge.textContent = '1080px exato';
+          idealBadge.classList.add('active-ideal');
+        } else if (isIdealCount) {
+          idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias vert.';
+          idealBadge.classList.add('active-ideal');
+        } else {
+          idealBadge.textContent = 'Ideal: ' + detectedIdealSlices + ' fatias vert.';
+          idealBadge.classList.remove('active-ideal');
         }
-      } else {
-        idealHint.style.display = 'none';
+      }
+
+      if (idealHint) {
+        if (!isIdealCount) {
+          idealHint.style.display = 'flex';
+          const idealW = Math.round(naturalW / detectedIdealSlices);
+          idealHint.innerHTML = `<span>Sugestão: <b>${detectedIdealSlices} fatias verticais</b> (${idealW}px cada)</span><button type="button" class="btn-apply-ideal" id="applyIdealBtn">Aplicar ${detectedIdealSlices} fatias</button>`;
+          const applyBtn = document.getElementById('applyIdealBtn');
+          if (applyBtn) {
+            applyBtn.addEventListener('click', () => syncSliceUI(detectedIdealSlices, undefined));
+          }
+        } else {
+          idealHint.style.display = 'none';
+        }
+      }
+
+      if (widthMatch) {
+        if (isExact1080 || isCloseTo1080) {
+          widthMatch.style.display = 'inline-block';
+          widthMatch.textContent = isExact1080 ? 'Padrão 1080px ✓' : '~1080px';
+        } else {
+          widthMatch.style.display = 'none';
+        }
       }
     }
 
-    if (widthMatch) {
-      if (isExact1080 || isCloseTo1080) {
-        widthMatch.style.display = 'inline-block';
-        widthMatch.textContent = isExact1080 ? 'Padrão 1080px ✓' : '~1080px';
-      } else {
-        widthMatch.style.display = 'none';
+    // --- HORIZONTAL (altura padrão 1350px e 1920px) ---
+    if (!naturalH || !detectedIdealSlicesH) {
+      if (idealBadgeH) idealBadgeH.style.display = 'none';
+      if (idealHintH) idealHintH.style.display = 'none';
+      if (heightMatch) heightMatch.style.display = 'none';
+    } else {
+      const currentSliceH = Math.round(naturalH / nH);
+      const isExact1350 = (naturalH % nH === 0) && (naturalH / nH === 1350);
+      const isCloseTo1350 = currentSliceH === 1350;
+      const isExact1920 = (naturalH % nH === 0) && (naturalH / nH === 1920);
+      const isCloseTo1920 = currentSliceH === 1920;
+
+      const idealInfo = detectedIdealSlicesH;
+      const matches1350 = (nH === idealInfo.s1350);
+      const matches1920 = (nH === idealInfo.s1920);
+      const isIdealCountH = matches1350 || matches1920;
+
+      if (idealBadgeH) {
+        idealBadgeH.style.display = 'inline-flex';
+        if (isExact1350) {
+          idealBadgeH.textContent = '1350px exato';
+          idealBadgeH.classList.add('active-ideal');
+        } else if (isExact1920) {
+          idealBadgeH.textContent = '1920px exato';
+          idealBadgeH.classList.add('active-ideal');
+        } else if (isIdealCountH) {
+          const targetUsed = matches1920 && !matches1350 ? '1920px' : '1350px';
+          idealBadgeH.textContent = `Ideal (${targetUsed}): ${nH} fatias horiz.`;
+          idealBadgeH.classList.add('active-ideal');
+        } else {
+          idealBadgeH.textContent = `Ideal (${idealInfo.target}px): ${idealInfo.slices} fatias horiz.`;
+          idealBadgeH.classList.remove('active-ideal');
+        }
+      }
+
+      if (idealHintH) {
+        if (!matches1350 && !matches1920) {
+          idealHintH.style.display = 'flex';
+          const h1350 = Math.round(naturalH / idealInfo.s1350);
+          const h1920 = Math.round(naturalH / idealInfo.s1920);
+
+          if (idealInfo.s1350 === idealInfo.s1920) {
+            idealHintH.innerHTML = `<span>Sugestão: <b>${idealInfo.s1350} fatias horizontais</b> (${h1350}px cada · padrão ${idealInfo.target}px)</span><button type="button" class="btn-apply-ideal" id="applyIdealBtnH">Aplicar ${idealInfo.s1350} fatias</button>`;
+            const applyBtnH = document.getElementById('applyIdealBtnH');
+            if (applyBtnH) {
+              applyBtnH.addEventListener('click', () => syncSliceUI(undefined, idealInfo.s1350));
+            }
+          } else {
+            idealHintH.innerHTML = `<span>Sugestões: <b>${idealInfo.s1350} fatias</b> (${h1350}px p/ 1350px) ou <b>${idealInfo.s1920} fatias</b> (${h1920}px p/ 1920px)</span><div class="ideal-hint-actions"><button type="button" class="btn-apply-ideal" id="applyIdealBtnH1350">1350px (${idealInfo.s1350} fat.)</button><button type="button" class="btn-apply-ideal" id="applyIdealBtnH1920">1920px (${idealInfo.s1920} fat.)</button></div>`;
+            const btn1350 = document.getElementById('applyIdealBtnH1350');
+            const btn1920 = document.getElementById('applyIdealBtnH1920');
+            if (btn1350) btn1350.addEventListener('click', () => syncSliceUI(undefined, idealInfo.s1350));
+            if (btn1920) btn1920.addEventListener('click', () => syncSliceUI(undefined, idealInfo.s1920));
+          }
+        } else {
+          idealHintH.style.display = 'none';
+        }
+      }
+
+      if (heightMatch) {
+        if (isExact1350 || isCloseTo1350) {
+          heightMatch.style.display = 'inline-block';
+          heightMatch.textContent = isExact1350 ? 'Padrão 1350px ✓' : '~1350px';
+        } else if (isExact1920 || isCloseTo1920) {
+          heightMatch.style.display = 'inline-block';
+          heightMatch.textContent = isExact1920 ? 'Padrão 1920px ✓' : '~1920px';
+        } else {
+          heightMatch.style.display = 'none';
+        }
       }
     }
   }
@@ -293,30 +453,55 @@
     }
   }
 
-  function syncSliceUI(n) {
-    sliceCountInput.value = n;
-    sliceRange.value = n;
-    sumCount.textContent = n;
+  function syncSliceUI(nV, nH) {
+    if (nV !== undefined) {
+      sliceCountInput.value = nV;
+      sliceRange.value = nV;
+    }
+    if (nH !== undefined && sliceCountHInput && sliceRangeH) {
+      sliceCountHInput.value = nH;
+      sliceRangeH.value = nH;
+    }
+
+    const v = getSliceCountV();
+    const h = getSliceCountH();
+    const total = v * h;
+
+    if (h > 1 && v > 1) {
+      sumCount.textContent = `${total} (${v} vert. × ${h} horiz.)`;
+    } else {
+      sumCount.textContent = total;
+    }
+
     if (naturalW) {
-      sumWidth.textContent = Math.ceil(naturalW / n);
+      sumWidth.textContent = Math.ceil(naturalW / v);
     } else {
       sumWidth.textContent = '—';
     }
+
+    if (sumHeight) {
+      if (naturalH) {
+        sumHeight.textContent = Math.ceil(naturalH / h);
+      } else {
+        sumHeight.textContent = '—';
+      }
+    }
+
     if (sumCompress) {
       sumCompress.textContent = isCompressed ? `Sim (${compressionQuality}%)` : 'Não';
     }
-    updateIdealUI(n);
+    updateIdealUI(v, h);
     updateModeSummary();
     if (stage.classList.contains('active')) drawPreview();
   }
 
   function updateModeSummary() {
-    const n = getSliceCount();
+    const total = getTotalSlices();
     if (sumCompress) {
       sumCompress.textContent = isCompressed ? `Sim (${compressionQuality}%)` : 'Não';
     }
     if (currentMode === 'individual') {
-      sumZipName.textContent = n + ' arquivos separados';
+      sumZipName.textContent = total + ' arquivos separados';
       cutBtnLabel.textContent = 'Cortar e baixar fatias';
     } else {
       sumZipName.textContent = 'fatias.zip';
@@ -324,24 +509,51 @@
     }
   }
 
+  // Vertical slice events
   sliceCountInput.addEventListener('input', () => {
     let val = parseInt(sliceCountInput.value, 10);
-    const min = parseInt(sliceCountInput.min || 2, 10);
+    const min = parseInt(sliceCountInput.min || 1, 10);
     const max = parseInt(sliceCountInput.max || 20, 10);
     if (isNaN(val)) return;
     if (val < min) val = min;
     if (val > max) val = max;
-    syncSliceUI(val);
+    syncSliceUI(val, undefined);
   });
-  sliceRange.addEventListener('input', () => syncSliceUI(parseInt(sliceRange.value, 10)));
+  sliceRange.addEventListener('input', () => syncSliceUI(parseInt(sliceRange.value, 10), undefined));
   decBtn.addEventListener('click', () => {
-    const min = parseInt(sliceCountInput.min || 2, 10);
-    syncSliceUI(Math.max(min, getSliceCount() - 1));
+    const min = parseInt(sliceCountInput.min || 1, 10);
+    syncSliceUI(Math.max(min, getSliceCountV() - 1), undefined);
   });
   incBtn.addEventListener('click', () => {
     const max = parseInt(sliceCountInput.max || 20, 10);
-    syncSliceUI(Math.min(max, getSliceCount() + 1));
+    syncSliceUI(Math.min(max, getSliceCountV() + 1), undefined);
   });
+
+  // Horizontal slice events
+  if (sliceCountHInput && sliceRangeH) {
+    sliceCountHInput.addEventListener('input', () => {
+      let val = parseInt(sliceCountHInput.value, 10);
+      const min = parseInt(sliceCountHInput.min || 1, 10);
+      const max = parseInt(sliceCountHInput.max || 20, 10);
+      if (isNaN(val)) return;
+      if (val < min) val = min;
+      if (val > max) val = max;
+      syncSliceUI(undefined, val);
+    });
+    sliceRangeH.addEventListener('input', () => syncSliceUI(undefined, parseInt(sliceRangeH.value, 10)));
+    if (decBtnH) {
+      decBtnH.addEventListener('click', () => {
+        const min = parseInt(sliceCountHInput.min || 1, 10);
+        syncSliceUI(undefined, Math.max(min, getSliceCountH() - 1));
+      });
+    }
+    if (incBtnH) {
+      incBtnH.addEventListener('click', () => {
+        const max = parseInt(sliceCountHInput.max || 20, 10);
+        syncSliceUI(undefined, Math.min(max, getSliceCountH() + 1));
+      });
+    }
+  }
 
   fmtButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -395,7 +607,12 @@
   // ---------- cutting + downloading ----------
   cutBtn.addEventListener('click', async () => {
     if (!img) return;
-    const n = getSliceCount();
+    const nV = getSliceCountV();
+    const nH = getSliceCountH();
+    const rows = nH > 0 ? nH : 1;
+    const cols = nV;
+    const totalSlices = cols * rows;
+
     cutBtn.disabled = true;
     cutBtn.classList.add('working');
     cutBtnLabel.textContent = isCompressed ? 'Comprimindo e cortando…' : 'Cortando…';
@@ -410,48 +627,73 @@
     };
 
     try {
-      const baseWidth = Math.floor(naturalW / n);
-      let remainder = naturalW - baseWidth * n;
-      let x = 0;
+      const colWidths = [];
+      const colXs = [];
+      let currX = 0;
+      let remW = naturalW - Math.floor(naturalW / cols) * cols;
+      for (let c = 0; c < cols; c++) {
+        const w = Math.floor(naturalW / cols) + (remW > 0 ? 1 : 0);
+        if (remW > 0) remW--;
+        colWidths.push(w);
+        colXs.push(currX);
+        currX += w;
+      }
+
+      const rowHeights = [];
+      const rowYs = [];
+      let currY = 0;
+      let remH = naturalH - Math.floor(naturalH / rows) * rows;
+      for (let r = 0; r < rows; r++) {
+        const h = Math.floor(naturalH / rows) + (remH > 0 ? 1 : 0);
+        if (remH > 0) remH--;
+        rowHeights.push(h);
+        rowYs.push(currY);
+        currY += h;
+      }
 
       const ext = currentFormat === 'jpeg' ? 'jpg' : 'png';
       const baseName = originalFile ? originalFile.name.replace(/\.[^.]+$/, '') : 'imagem';
 
       const slices = [];
-      for (let i = 0; i < n; i++) {
-        let sliceW = baseWidth + (remainder > 0 ? 1 : 0);
-        if (remainder > 0) remainder--;
+      let sliceIndex = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          sliceIndex++;
+          const sliceW = colWidths[c];
+          const sliceH = rowHeights[r];
+          const sliceX = colXs[c];
+          const sliceY = rowYs[r];
 
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = sliceW;
-        sliceCanvas.height = naturalH;
-        const sctx = sliceCanvas.getContext('2d');
-        sctx.drawImage(img, x, 0, sliceW, naturalH, 0, 0, sliceW, naturalH);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = sliceW;
+          sliceCanvas.height = sliceH;
+          const sctx = sliceCanvas.getContext('2d');
+          sctx.drawImage(img, sliceX, sliceY, sliceW, sliceH, 0, 0, sliceW, sliceH);
 
-        let blob;
-        if (currentFormat === 'png') {
-          if (isCompressed && typeof UPNG !== 'undefined') {
-            // UPNG compression
-            const imgData = sctx.getImageData(0, 0, sliceW, naturalH);
-            const cnum = Math.max(2, Math.min(256, Math.round((compressionQuality / 100) * 256)));
-            const pngBuffer = UPNG.encode([imgData.data.buffer], sliceW, naturalH, cnum);
-            blob = new Blob([pngBuffer], { type: 'image/png' });
+          let blob;
+          if (currentFormat === 'png') {
+            if (isCompressed && typeof UPNG !== 'undefined') {
+              // UPNG compression
+              const imgData = sctx.getImageData(0, 0, sliceW, sliceH);
+              const cnum = Math.max(2, Math.min(256, Math.round((compressionQuality / 100) * 256)));
+              const pngBuffer = UPNG.encode([imgData.data.buffer], sliceW, sliceH, cnum);
+              blob = new Blob([pngBuffer], { type: 'image/png' });
+            } else {
+              blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/png'));
+            }
           } else {
-            blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/png'));
+            // JPG compression
+            const q = isCompressed ? (compressionQuality / 100) : 0.92;
+            blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/jpeg', q));
           }
-        } else {
-          // JPG compression
-          const q = isCompressed ? (compressionQuality / 100) : 0.92;
-          blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/jpeg', q));
+
+          const name = baseName + '-fatia-' + String(sliceIndex).padStart(2, '0') + '.' + ext;
+          slices.push({ name, blob });
+
+          progressFill.style.width = Math.round((sliceIndex / totalSlices) * 70) + '%';
+          // Allow UI to breathe
+          await new Promise(r => setTimeout(r, 10));
         }
-
-        const name = baseName + '-fatia-' + String(i + 1).padStart(2, '0') + '.' + ext;
-        slices.push({ name, blob });
-
-        x += sliceW;
-        progressFill.style.width = Math.round(((i + 1) / n) * 70) + '%';
-        // Allow UI to breathe
-        await new Promise(r => setTimeout(r, 10));
       }
 
       if (currentMode === 'individual') {
@@ -498,6 +740,7 @@
       setTimeout(updateModeSummary, 2200);
     }
   });
+
   updateQualityUI();
-  syncSliceUI(2);
+  syncSliceUI(2, 1);
 })();

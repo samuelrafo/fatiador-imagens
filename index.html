@@ -21,9 +21,9 @@
 
   <div class="wrap">
     <header class="hero">
-      <div class="eyebrow">Ferramenta de corte V3</div>
+      <div class="eyebrow">Ferramenta de corte V4</div>
       <h1>Fatiador de imagens</h1>
-      <p class="sub">Carregue uma imagem, escolha em quantas fatias verticais ela deve ser cortada, e baixe tudo pronto
+      <p class="sub">Carregue uma imagem, escolha em quantas fatias ela deve ser cortada, e baixe tudo pronto
         em um único arquivo compactado ou em imagens separadas. Funciona offline.</p>
     </header>
 
@@ -67,18 +67,34 @@
       <section class="panel controls" id="controlsPanel">
         <div class="ctrl-block">
           <div class="ctrl-head">
-            <label for="sliceCount">Quantidade de fatias</label>
+            <label for="sliceCount">Quantidade de cortes verticais</label>
             <span class="ideal-badge" id="idealBadge" style="display:none;"></span>
           </div>
           <div class="slice-input">
             <div class="stepper">
-              <button type="button" id="decBtn" aria-label="Diminuir fatias">–</button>
-              <input type="number" id="sliceCount" value="2" min="2" max="20">
-              <button type="button" id="incBtn" aria-label="Aumentar fatias">+</button>
+              <button type="button" id="decBtn" aria-label="Diminuir cortes verticais">–</button>
+              <input type="number" id="sliceCount" value="2" min="1" max="20">
+              <button type="button" id="incBtn" aria-label="Aumentar cortes verticais">+</button>
             </div>
-            <input type="range" id="sliceRange" min="2" max="20" value="2">
+            <input type="range" id="sliceRange" min="1" max="20" value="2">
           </div>
           <div class="ideal-hint" id="idealHint" style="display:none;"></div>
+        </div>
+
+        <div class="ctrl-block">
+          <div class="ctrl-head">
+            <label for="sliceCountH">Quantidade de cortes horizontais</label>
+            <span class="ideal-badge" id="idealBadgeH" style="display:none;"></span>
+          </div>
+          <div class="slice-input">
+            <div class="stepper">
+              <button type="button" id="decBtnH" aria-label="Diminuir cortes horizontais">–</button>
+              <input type="number" id="sliceCountH" value="1" min="1" max="20">
+              <button type="button" id="incBtnH" aria-label="Aumentar cortes horizontais">+</button>
+            </div>
+            <input type="range" id="sliceRangeH" min="1" max="20" value="1">
+          </div>
+          <div class="ideal-hint" id="idealHintH" style="display:none;"></div>
         </div>
 
         <div class="ctrl-block">
@@ -123,6 +139,8 @@
         <div class="summary">
           <div>fatias a gerar: <span id="sumCount">2</span></div>
           <div>largura por fatia: <span id="sumWidth">—</span> px <span class="width-match" id="widthMatch"
+              style="display:none;"></span></div>
+          <div>altura por fatia: <span id="sumHeight">—</span> px <span class="width-match" id="heightMatch"
               style="display:none;"></span></div>
           <div>compressão: <span id="sumCompress">Não</span></div>
           <div>arquivo final: <span id="sumZipName">2 arquivos separados</span></div>
