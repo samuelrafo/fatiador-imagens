@@ -26,11 +26,22 @@
   const fmtButtons = document.querySelectorAll('.fmt');
   let currentFormat = 'png';
 
+  const compressButtons = document.querySelectorAll('.compress-btn');
+  const qualityBlock = document.getElementById('qualityBlock');
+  const qualityRange = document.getElementById('qualityRange');
+  const qualityBadge = document.getElementById('qualityBadge');
+  const qualityDesc = document.getElementById('qualityDesc');
+  let isCompressed = false;
+  let qualityPNG = 100;
+  let qualityJPG = 98;
+  let compressionQuality = 100;
+
   const modeButtons = document.querySelectorAll('.mode');
   let currentMode = 'individual';
 
   const sumCount = document.getElementById('sumCount');
   const sumWidth = document.getElementById('sumWidth');
+  const sumCompress = document.getElementById('sumCompress');
   const sumZipName = document.getElementById('sumZipName');
 
   const cutBtn = document.getElementById('cutBtn');
@@ -71,6 +82,19 @@
     fileInput.value = '';
     sliceCountInput.max = 20;
     sliceRange.max = 20;
+
+    isCompressed = false;
+    qualityPNG = 100;
+    qualityJPG = 98;
+    compressionQuality = currentFormat === 'jpeg' ? qualityJPG : qualityPNG;
+    if (qualityRange) qualityRange.value = compressionQuality;
+    compressButtons.forEach(b => {
+      if (b.dataset.compress === 'no') b.classList.add('active');
+      else b.classList.remove('active');
+    });
+    if (qualityBlock) qualityBlock.style.display = 'none';
+    updateQualityUI();
+
     updateIdealUI(2);
     syncSliceUI(2);
   });
@@ -240,6 +264,35 @@
     }
   }
 
+  function updateQualityUI() {
+    if (qualityBadge) qualityBadge.textContent = compressionQuality + '%';
+    if (!qualityDesc) return;
+    if (currentFormat === 'png') {
+      if (compressionQuality >= 95) {
+        qualityDesc.textContent = 'Qualidade máxima PNG (256 cores quantizadas, alta fidelidade)';
+      } else if (compressionQuality >= 70) {
+        const c = Math.max(2, Math.round((compressionQuality / 100) * 256));
+        qualityDesc.textContent = `Equilíbrio recomendado (${c} cores, arquivo bem mais leve)`;
+      } else if (compressionQuality >= 40) {
+        const c = Math.max(2, Math.round((compressionQuality / 100) * 256));
+        qualityDesc.textContent = `Alta compressão (${c} cores, redução significativa)`;
+      } else {
+        const c = Math.max(2, Math.round((compressionQuality / 100) * 256));
+        qualityDesc.textContent = `Compressão máxima (${c} cores, tamanho mínimo)`;
+      }
+    } else {
+      if (compressionQuality >= 90) {
+        qualityDesc.textContent = 'Qualidade máxima JPG (alta fidelidade e máxima nitidez)';
+      } else if (compressionQuality >= 70) {
+        qualityDesc.textContent = 'Equilíbrio recomendado JPG (ótima nitidez e tamanho leve)';
+      } else if (compressionQuality >= 40) {
+        qualityDesc.textContent = 'Alta compressão JPG (para carregamento rápido)';
+      } else {
+        qualityDesc.textContent = 'Compressão máxima JPG (menor tamanho de arquivo)';
+      }
+    }
+  }
+
   function syncSliceUI(n) {
     sliceCountInput.value = n;
     sliceRange.value = n;
@@ -249,6 +302,9 @@
     } else {
       sumWidth.textContent = '—';
     }
+    if (sumCompress) {
+      sumCompress.textContent = isCompressed ? `Sim (${compressionQuality}%)` : 'Não';
+    }
     updateIdealUI(n);
     updateModeSummary();
     if (stage.classList.contains('active')) drawPreview();
@@ -256,6 +312,9 @@
 
   function updateModeSummary() {
     const n = getSliceCount();
+    if (sumCompress) {
+      sumCompress.textContent = isCompressed ? `Sim (${compressionQuality}%)` : 'Não';
+    }
     if (currentMode === 'individual') {
       sumZipName.textContent = n + ' arquivos separados';
       cutBtnLabel.textContent = 'Cortar e baixar fatias';
@@ -289,8 +348,38 @@
       fmtButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFormat = btn.dataset.fmt;
+      compressionQuality = (currentFormat === 'jpeg') ? qualityJPG : qualityPNG;
+      if (qualityRange) qualityRange.value = compressionQuality;
+      updateQualityUI();
+      updateModeSummary();
     });
   });
+
+  compressButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      compressButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      isCompressed = (btn.dataset.compress === 'yes');
+      if (qualityBlock) {
+        qualityBlock.style.display = isCompressed ? 'block' : 'none';
+      }
+      updateQualityUI();
+      updateModeSummary();
+    });
+  });
+
+  if (qualityRange) {
+    qualityRange.addEventListener('input', () => {
+      compressionQuality = parseInt(qualityRange.value, 10);
+      if (currentFormat === 'jpeg') {
+        qualityJPG = compressionQuality;
+      } else {
+        qualityPNG = compressionQuality;
+      }
+      updateQualityUI();
+      updateModeSummary();
+    });
+  }
 
   modeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -309,7 +398,7 @@
     const n = getSliceCount();
     cutBtn.disabled = true;
     cutBtn.classList.add('working');
-    cutBtnLabel.textContent = 'Cortando…';
+    cutBtnLabel.textContent = isCompressed ? 'Comprimindo e cortando…' : 'Cortando…';
     progressTrack.classList.add('show');
     progressFill.style.width = '0%';
 
@@ -325,8 +414,7 @@
       let remainder = naturalW - baseWidth * n;
       let x = 0;
 
-      const mime = currentFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
-      const ext = currentFormat === 'jpeg' ? 'jpg' : currentFormat;
+      const ext = currentFormat === 'jpeg' ? 'jpg' : 'png';
       const baseName = originalFile ? originalFile.name.replace(/\.[^.]+$/, '') : 'imagem';
 
       const slices = [];
@@ -340,12 +428,30 @@
         const sctx = sliceCanvas.getContext('2d');
         sctx.drawImage(img, x, 0, sliceW, naturalH, 0, 0, sliceW, naturalH);
 
-        const blob = await new Promise(res => sliceCanvas.toBlob(res, mime, 0.92));
+        let blob;
+        if (currentFormat === 'png') {
+          if (isCompressed && typeof UPNG !== 'undefined') {
+            // UPNG compression
+            const imgData = sctx.getImageData(0, 0, sliceW, naturalH);
+            const cnum = Math.max(2, Math.min(256, Math.round((compressionQuality / 100) * 256)));
+            const pngBuffer = UPNG.encode([imgData.data.buffer], sliceW, naturalH, cnum);
+            blob = new Blob([pngBuffer], { type: 'image/png' });
+          } else {
+            blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/png'));
+          }
+        } else {
+          // JPG compression
+          const q = isCompressed ? (compressionQuality / 100) : 0.92;
+          blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/jpeg', q));
+        }
+
         const name = baseName + '-fatia-' + String(i + 1).padStart(2, '0') + '.' + ext;
         slices.push({ name, blob });
 
         x += sliceW;
         progressFill.style.width = Math.round(((i + 1) / n) * 70) + '%';
+        // Allow UI to breathe
+        await new Promise(r => setTimeout(r, 10));
       }
 
       if (currentMode === 'individual') {
@@ -364,7 +470,7 @@
           await new Promise(r => setTimeout(r, 220));
         }
       } else {
-        cutBtnLabel.textContent = 'Compactando…';
+        cutBtnLabel.textContent = 'Compactando zip…';
         const zip = new JSZip();
         slices.forEach(s => zip.file(s.name, s.blob));
         const zipBlob = await zip.generateAsync({ type: 'blob' }, meta => {
@@ -392,5 +498,6 @@
       setTimeout(updateModeSummary, 2200);
     }
   });
+  updateQualityUI();
   syncSliceUI(2);
 })();

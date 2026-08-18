@@ -11,6 +11,8 @@
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/vendor/jszip.min.js"></script>
+  <script src="js/vendor/pako.min.js"></script>
+  <script src="js/vendor/upng.js"></script>
 </head>
 
 <body>
@@ -19,7 +21,7 @@
 
   <div class="wrap">
     <header class="hero">
-      <div class="eyebrow">Ferramenta de corte V2</div>
+      <div class="eyebrow">Ferramenta de corte V3</div>
       <h1>Fatiador de imagens</h1>
       <p class="sub">Carregue uma imagem, escolha em quantas fatias verticais ela deve ser cortada, e baixe tudo pronto
         em um único arquivo compactado ou em imagens separadas. Funciona offline.</p>
@@ -88,6 +90,27 @@
         </div>
 
         <div class="ctrl-block">
+          <label>Comprimir?</label>
+          <div class="format-row">
+            <button type="button" class="compress-btn active" data-compress="no">Não</button>
+            <button type="button" class="compress-btn" data-compress="yes">Sim</button>
+          </div>
+        </div>
+
+        <div class="ctrl-block" id="qualityBlock" style="display:none;">
+          <div class="ctrl-head">
+            <label for="qualityRange">Qualidade</label>
+            <span class="quality-badge" id="qualityBadge">100%</span>
+          </div>
+          <div class="slice-input">
+            <input type="range" id="qualityRange" min="10" max="100" value="100" step="1">
+          </div>
+          <div class="quality-hint" id="qualityHint">
+            <span id="qualityDesc">Qualidade máxima PNG (256 cores quantizadas, alta fidelidade)</span>
+          </div>
+        </div>
+
+        <div class="ctrl-block">
           <label>Modo de download</label>
           <div class="format-row">
             <button type="button" class="mode active" data-mode="individual">Fatias individuais</button>
@@ -101,6 +124,7 @@
           <div>fatias a gerar: <span id="sumCount">2</span></div>
           <div>largura por fatia: <span id="sumWidth">—</span> px <span class="width-match" id="widthMatch"
               style="display:none;"></span></div>
+          <div>compressão: <span id="sumCompress">Não</span></div>
           <div>arquivo final: <span id="sumZipName">2 arquivos separados</span></div>
         </div>
 
