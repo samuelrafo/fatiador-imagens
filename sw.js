@@ -2,7 +2,7 @@
 // Faz o cache de todos os arquivos do app na instalação, para que a ferramenta
 // funcione completamente offline depois da primeira visita.
 
-const CACHE_VERSION = 'fatiador-v8';
+const CACHE_VERSION = 'fatiador-v9';
 const APP_SHELL = [
   './',
   './index.html',
