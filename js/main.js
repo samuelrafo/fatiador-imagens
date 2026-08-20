@@ -22,13 +22,11 @@
   const idealHintH = document.getElementById('idealHintH');
   const heightMatch = document.getElementById('heightMatch');
 
-  // Vertical slices
   const sliceCountInput = document.getElementById('sliceCount');
   const sliceRange = document.getElementById('sliceRange');
   const decBtn = document.getElementById('decBtn');
   const incBtn = document.getElementById('incBtn');
 
-  // Horizontal slices
   const sliceCountHInput = document.getElementById('sliceCountH');
   const sliceRangeH = document.getElementById('sliceRangeH');
   const decBtnH = document.getElementById('decBtnH');
@@ -64,11 +62,12 @@
 
   let img = null;
   let originalFile = null;
+  let currentBlobUrl = null;
   let naturalW = 0, naturalH = 0;
   let detectedIdealSlices = null;
   let detectedIdealSlicesH = null;
+  let resizeRafId = null;
 
-  // ---------- upload handling ----------
   dropzone.addEventListener('click', () => fileInput.click());
   dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
   dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
@@ -82,7 +81,12 @@
   });
 
   resetLink.addEventListener('click', () => {
-    img = null; originalFile = null;
+    if (currentBlobUrl) {
+      URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
+    img = null;
+    originalFile = null;
     naturalW = 0; naturalH = 0;
     detectedIdealSlices = null;
     detectedIdealSlicesH = null;
@@ -159,19 +163,26 @@
 
   function handleFile(file) {
     if (!file.type.startsWith('image/')) return;
+    if (currentBlobUrl) {
+      URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
     originalFile = file;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const image = new Image();
-      image.onload = () => {
-        img = image;
-        naturalW = image.naturalWidth;
-        naturalH = image.naturalHeight;
-        onImageReady(file);
-      };
-      image.src = ev.target.result;
+    currentBlobUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      img = image;
+      naturalW = image.naturalWidth;
+      naturalH = image.naturalHeight;
+      onImageReady(file);
     };
-    reader.readAsDataURL(file);
+    image.onerror = () => {
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = null;
+      }
+    };
+    image.src = currentBlobUrl;
   }
 
   function onImageReady(file) {
@@ -203,12 +214,15 @@
     const ratio = Math.min(holderW / naturalW, holderH / naturalH, 1);
     const w = Math.round(naturalW * ratio);
     const h = Math.round(naturalH * ratio);
-    canvas.width = naturalW;
-    canvas.height = naturalH;
+
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, naturalW, naturalH, 0, 0, w, h);
 
     drawCutLines(w, h);
     drawRuler(w);
@@ -229,27 +243,26 @@
     const stepW = displayW / nV;
     const stepH = displayH / rows;
 
-    // Vertical cut lines
+    const fragment = document.createDocumentFragment();
+
     if (nV > 1) {
       for (let i = 1; i < nV; i++) {
         const line = document.createElement('div');
         line.className = 'cut-line vertical';
         line.style.left = (stepW * i) + 'px';
-        cutOverlay.appendChild(line);
+        fragment.appendChild(line);
       }
     }
 
-    // Horizontal cut lines
     if (nH > 1) {
       for (let r = 1; r < nH; r++) {
         const line = document.createElement('div');
         line.className = 'cut-line horizontal';
         line.style.top = (stepH * r) + 'px';
-        cutOverlay.appendChild(line);
+        fragment.appendChild(line);
       }
     }
 
-    // Number badges
     let idx = 1;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < nV; c++) {
@@ -258,9 +271,11 @@
         label.style.left = (stepW * c + 6) + 'px';
         label.style.top = (stepH * r + 6) + 'px';
         label.textContent = String(idx++).padStart(2, '0');
-        cutOverlay.appendChild(label);
+        fragment.appendChild(label);
       }
     }
+
+    cutOverlay.appendChild(fragment);
   }
 
   function drawRuler(displayW) {
@@ -269,6 +284,8 @@
     const stepW = displayW / n;
     ruler.style.width = displayW + 'px';
     ruler.style.margin = '0 auto';
+
+    const fragment = document.createDocumentFragment();
     for (let i = 0; i <= n; i++) {
       const tick = document.createElement('div');
       tick.style.position = 'absolute';
@@ -276,8 +293,9 @@
       tick.style.bottom = '0';
       tick.style.height = (i % n === 0 ? '16px' : '10px');
       tick.style.borderLeft = '1px solid var(--steel-dim)';
-      ruler.appendChild(tick);
+      fragment.appendChild(tick);
     }
+    ruler.appendChild(fragment);
   }
 
   function getSliceCountV() {
@@ -301,8 +319,26 @@
     return v * h;
   }
 
+  if (idealHint) {
+    idealHint.addEventListener('click', e => {
+      const btn = e.target.closest('#applyIdealBtn');
+      if (btn && detectedIdealSlices) {
+        syncSliceUI(detectedIdealSlices, undefined);
+      }
+    });
+  }
+
+  if (idealHintH) {
+    idealHintH.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-apply-h]');
+      if (btn) {
+        const val = parseInt(btn.dataset.applyH, 10);
+        if (!isNaN(val)) syncSliceUI(undefined, val);
+      }
+    });
+  }
+
   function updateIdealUI(nV, nH) {
-    // --- VERTICAL (largura padrão 1080px) ---
     if (!naturalW || !detectedIdealSlices) {
       if (idealBadge) idealBadge.style.display = 'none';
       if (idealHint) idealHint.style.display = 'none';
@@ -332,10 +368,6 @@
           idealHint.style.display = 'flex';
           const idealW = Math.round(naturalW / detectedIdealSlices);
           idealHint.innerHTML = `<span>Sugestão: <b>${detectedIdealSlices} fatias verticais</b> (${idealW}px cada)</span><button type="button" class="btn-apply-ideal" id="applyIdealBtn">Aplicar ${detectedIdealSlices} fatias</button>`;
-          const applyBtn = document.getElementById('applyIdealBtn');
-          if (applyBtn) {
-            applyBtn.addEventListener('click', () => syncSliceUI(detectedIdealSlices, undefined));
-          }
         } else {
           idealHint.style.display = 'none';
         }
@@ -351,7 +383,6 @@
       }
     }
 
-    // --- HORIZONTAL (altura padrão 1350px e 1920px) ---
     if (!naturalH || !detectedIdealSlicesH) {
       if (idealBadgeH) idealBadgeH.style.display = 'none';
       if (idealHintH) idealHintH.style.display = 'none';
@@ -393,17 +424,9 @@
           const h1920 = Math.round(naturalH / idealInfo.s1920);
 
           if (idealInfo.s1350 === idealInfo.s1920) {
-            idealHintH.innerHTML = `<span>Sugestão: <b>${idealInfo.s1350} fatias horizontais</b> (${h1350}px cada · padrão ${idealInfo.target}px)</span><button type="button" class="btn-apply-ideal" id="applyIdealBtnH">Aplicar ${idealInfo.s1350} fatias</button>`;
-            const applyBtnH = document.getElementById('applyIdealBtnH');
-            if (applyBtnH) {
-              applyBtnH.addEventListener('click', () => syncSliceUI(undefined, idealInfo.s1350));
-            }
+            idealHintH.innerHTML = `<span>Sugestão: <b>${idealInfo.s1350} fatias horizontais</b> (${h1350}px cada · padrão ${idealInfo.target}px)</span><button type="button" class="btn-apply-ideal" data-apply-h="${idealInfo.s1350}">Aplicar ${idealInfo.s1350} fatias</button>`;
           } else {
-            idealHintH.innerHTML = `<span>Sugestões: <b>${idealInfo.s1350} fatias</b> (${h1350}px p/ 1350px) ou <b>${idealInfo.s1920} fatias</b> (${h1920}px p/ 1920px)</span><div class="ideal-hint-actions"><button type="button" class="btn-apply-ideal" id="applyIdealBtnH1350">1350px (${idealInfo.s1350} fat.)</button><button type="button" class="btn-apply-ideal" id="applyIdealBtnH1920">1920px (${idealInfo.s1920} fat.)</button></div>`;
-            const btn1350 = document.getElementById('applyIdealBtnH1350');
-            const btn1920 = document.getElementById('applyIdealBtnH1920');
-            if (btn1350) btn1350.addEventListener('click', () => syncSliceUI(undefined, idealInfo.s1350));
-            if (btn1920) btn1920.addEventListener('click', () => syncSliceUI(undefined, idealInfo.s1920));
+            idealHintH.innerHTML = `<span>Sugestões: <b>${idealInfo.s1350} fatias</b> (${h1350}px p/ 1350px) ou <b>${idealInfo.s1920} fatias</b> (${h1920}px p/ 1920px)</span><div class="ideal-hint-actions"><button type="button" class="btn-apply-ideal" data-apply-h="${idealInfo.s1350}">1350px (${idealInfo.s1350} fat.)</button><button type="button" class="btn-apply-ideal" data-apply-h="${idealInfo.s1920}">1920px (${idealInfo.s1920} fat.)</button></div>`;
           }
         } else {
           idealHintH.style.display = 'none';
@@ -509,7 +532,6 @@
     }
   }
 
-  // Vertical slice events
   sliceCountInput.addEventListener('input', () => {
     let val = parseInt(sliceCountInput.value, 10);
     const min = parseInt(sliceCountInput.min || 1, 10);
@@ -529,7 +551,6 @@
     syncSliceUI(Math.min(max, getSliceCountV() + 1), undefined);
   });
 
-  // Horizontal slice events
   if (sliceCountHInput && sliceRangeH) {
     sliceCountHInput.addEventListener('input', () => {
       let val = parseInt(sliceCountHInput.value, 10);
@@ -602,9 +623,15 @@
     });
   });
 
-  window.addEventListener('resize', () => { if (img) drawPreview(); });
+  window.addEventListener('resize', () => {
+    if (!img) return;
+    if (resizeRafId) cancelAnimationFrame(resizeRafId);
+    resizeRafId = requestAnimationFrame(drawPreview);
+  });
 
-  // ---------- cutting + downloading ----------
+  const sliceCanvas = document.createElement('canvas');
+  const sctx = sliceCanvas.getContext('2d', { willReadFrequently: true });
+
   cutBtn.addEventListener('click', async () => {
     if (!img) return;
     const nV = getSliceCountV();
@@ -664,16 +691,14 @@
           const sliceX = colXs[c];
           const sliceY = rowYs[r];
 
-          const sliceCanvas = document.createElement('canvas');
           sliceCanvas.width = sliceW;
           sliceCanvas.height = sliceH;
-          const sctx = sliceCanvas.getContext('2d');
+          sctx.clearRect(0, 0, sliceW, sliceH);
           sctx.drawImage(img, sliceX, sliceY, sliceW, sliceH, 0, 0, sliceW, sliceH);
 
           let blob;
           if (currentFormat === 'png') {
             if (isCompressed && typeof UPNG !== 'undefined') {
-              // UPNG compression
               const imgData = sctx.getImageData(0, 0, sliceW, sliceH);
               const cnum = Math.max(2, Math.min(256, Math.round((compressionQuality / 100) * 256)));
               const pngBuffer = UPNG.encode([imgData.data.buffer], sliceW, sliceH, cnum);
@@ -682,7 +707,6 @@
               blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/png'));
             }
           } else {
-            // JPG compression
             const q = isCompressed ? (compressionQuality / 100) : 0.92;
             blob = await new Promise(res => sliceCanvas.toBlob(res, 'image/jpeg', q));
           }
@@ -691,7 +715,6 @@
           slices.push({ name, blob });
 
           progressFill.style.width = Math.round((sliceIndex / totalSlices) * 70) + '%';
-          // Allow UI to breathe
           await new Promise(r => setTimeout(r, 10));
         }
       }
@@ -708,7 +731,6 @@
           a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 4000);
           progressFill.style.width = (70 + Math.round(((i + 1) / slices.length) * 30)) + '%';
-          // small delay so the browser doesn't block a burst of downloads
           await new Promise(r => setTimeout(r, 220));
         }
       } else {

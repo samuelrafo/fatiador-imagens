@@ -1,31 +1,24 @@
 :root {
-  /* ---- surface & background ---- */
   --bg-0: #eef1f6;
   --bg-1: #e7ecf5;
   --bg-blob-a: #cfe3ff;
   --bg-blob-b: #d7f9ee;
   --bg-blob-c: #eee0ff;
 
-  /* ---- glass ---- */
   --glass: rgba(255, 255, 255, 0.58);
   --glass-strong: rgba(255, 255, 255, 0.78);
   --glass-border: rgba(255, 255, 255, 0.65);
   --glass-shadow: 0 1px 1px rgba(20, 20, 30, 0.03), 0 20px 40px -18px rgba(30, 40, 70, 0.25);
 
-  /* ---- text ---- */
   --ink: #1d1d1f;
   --ink-soft: #48484d;
   --ink-dim: #6e6e73;
   --ink-faint: #8a8a8e;
   --hairline: rgba(60, 60, 67, 0.12);
 
-  /* ---- accent (brand) ---- */
   --hazard: #36f1cd;
-  /* primary accent, kept from brief */
   --hazard-ink: #0a3d34;
-  /* readable dark text on accent */
   --blue: #0080FF;
-  /* system-blue, used for cut markers / info */
   --steel: #6e6e73;
   --steel-dim: #a8a8ad;
   --blade: #0a84ff;
@@ -50,7 +43,6 @@ body {
   position: relative;
 }
 
-/* soft ambient color blobs, Apple-marketing-page style */
 body::before {
   content: "";
   position: fixed;
@@ -144,7 +136,6 @@ section.panel {
   position: relative;
 }
 
-/* ===== cutting board / preview ===== */
 .board {
   padding: 22px;
   display: flex;
@@ -237,7 +228,6 @@ section.panel {
   display: none;
 }
 
-/* preview stage with ruler + cut lines */
 .stage {
   display: none;
   flex: 1;
@@ -357,7 +347,6 @@ section.panel {
   font-weight: 600;
 }
 
-/* ===== controls ===== */
 .controls {
   display: none;
   padding: 26px;
@@ -586,7 +575,6 @@ input[type=range]::-webkit-slider-thumb {
   background: #fff;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(20, 20, 30, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.04);
-
 }
 
 input[type=range]::-moz-range-thumb {
@@ -605,7 +593,6 @@ input::-webkit-inner-spin-button {
   margin: 0;
 }
 
-/* Firefox */
 input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
